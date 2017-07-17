@@ -6,12 +6,24 @@ import (
     logger "github.com/Sirupsen/logrus"
 )
 
-func WitField(key string, value interface{}) (eb ErrorBuilder) {
-    str := fmt.Sprintf("%v", value)
-    return ErrorBuilder{key, str, nil}
+func New(msg string) *WrappingError {
+    return &WrappingError{msg:msg, wrapped:nil, keyValue:map[string]string{}}
 }
 
-// TODO: also want New, Wrap, and Fmt implemented as package-scoped function
+func Fmt(format string, args ...interface{}) *WrappingError {
+    msg := fmt.Sprintf(format, args...)
+    return &WrappingError{msg: msg, wrapped: nil, keyValue:map[string]string{}}
+}
+
+func Wrap(err error, msg string) *WrappingError {
+    kv := map[string]string{}
+    return &WrappingError{msg:msg, wrapped:err, keyValue : kv}
+}
+
+func WithField(key string, value interface{}) (eb *ErrorBuilder) {
+    str := fmt.Sprintf("%v", value)
+    return &ErrorBuilder{key, str, nil}
+}
 
 type ErrorBuilder struct {
     key     string
@@ -47,14 +59,12 @@ func (eb *ErrorBuilder) New(msg string) *WrappingError {
     return &WrappingError{msg: msg, wrapped: nil, keyValue:kv}
 }
 
-
 func (eb *ErrorBuilder) Fmt(format string, args ...interface{}) *WrappingError {
     msg := fmt.Sprintf(format, args...)
     kv := map[string]string{}
     eb.collectKeyValues(kv)
     return &WrappingError{msg: msg, wrapped: nil, keyValue:kv}
 }
-
 
 type WrappingError struct {
     keyValue map[string]string
@@ -68,7 +78,17 @@ func (err *WrappingError) Log(logger logger.Logger) *WrappingError {
     return err
 }
 
-func (w *WrappingError) Error() string {
+func (err *WrappingError) Error() string {
     // TODO: recursively assemble a string from the error
-    return ""
+    msg := err.msg + " ("
+    idx := 0
+    for key, value := range err.keyValue {
+        if idx != 0 {
+            msg += ", " + key + ": " + value
+        } else {
+            msg += key + ": " + value
+        }
+    }
+
+    return msg + ")"
 }
